@@ -8,7 +8,7 @@ These functions provide methods to save connection component customisations to i
 
 - Backup-ConnectionComponent
   - Extracts connection component details from a PVConfiguration.xml file.
-  - Any configured connection components to be backed up to file.
+  - Any configured connection components can be backed up to file.
 
 - Restore-ConnectionComponent
   - Restores a "ConnectionComponent" to a CyberArk PVConfiguration.xml file.
