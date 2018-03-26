@@ -165,7 +165,20 @@
 		[array]$CommonParameters += [System.Management.Automation.PSCmdlet]::CommonParameters
 		[array]$CommonParameters += [System.Management.Automation.PSCmdlet]::OptionalCommonParameters
 		[array]$CommonParameters += "URL", "WebServiceName"
+
+		#If Tls12 Security Protocol is available
+		if(([Net.SecurityProtocolType].GetEnumNames() -contains "Tls12") -and
+
+			#And Tls12 is not already in use
+			(-not ([System.Net.ServicePointManager]::SecurityProtocol -match "Tls12"))) {
+
+			Write-Verbose "Setting Security Protocol to TLS12"
+			[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+		}
+
 	}
+
 	Process {
 
 		$PSBoundParameters.keys | Where-Object {$CommonParameters -notcontains $_} | ForEach-Object {
