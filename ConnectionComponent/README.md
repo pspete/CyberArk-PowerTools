@@ -4,7 +4,7 @@
 
 These functions provide methods to save connection component customisations to individual files for backup, and restore connection components from these files.
 
-[`PoShPACLI`](https://github.com/pspete/PoShPACLI) & `PACLI.EXE` are required.
+[`PoShPACLI`](https://github.com/pspete/PoShPACLI) (Version 1.0.0+) & `PACLI.EXE` are required.
 
 - `Backup-ConnectionComponent`
   - Extracts connection component details from a PVConfiguration.xml file.

@@ -36,8 +36,8 @@
 	.PARAMETER Credential
 	Username/password to authenticate to the CyberArk vault.
 
-	.PARAMETER PacliFolder
-	The local folder containing PACLI.exe.
+	.PARAMETER PacliPath
+	Path to PACLI.exe.
 
 	.PARAMETER PVWAConfigSafe
 	The name of the safe in the CyberArk vault containing the PVConfiguration.xml file.
@@ -117,7 +117,7 @@
 			HelpMessage = "Connection Component Backup XML file path"
 		)]
 		[ValidateNotNullOrEmpty()]
-		[ValidateScript( {Select-XML -Path $_ -XPath "//ConnectionComponent"} )]
+		[ValidateScript( { Select-XML -Path $_ -XPath "//ConnectionComponent" } )]
 		[string[]]
 		$BackupFile,
 
@@ -135,7 +135,7 @@
 			HelpMessage = "Path to local PVConfiguration.xml file to update"
 		)]
 		[ValidateNotNullOrEmpty()]
-		[ValidateScript( {Select-XML -Path $_ -XPath "//ConnectionComponents"} )]
+		[ValidateScript( { Select-XML -Path $_ -XPath "//ConnectionComponents" } )]
 		[string[]]
 		$LocalConfig,
 
@@ -173,23 +173,23 @@
 		[pscredential]
 		$Credential,
 
-		# Folder containing PACLI.EXE
+		# PACLI.EXE Path
 		[Parameter(
 			Mandatory = $true,
 			ParameterSetName = "Default",
 			ValueFromPipelineByPropertyName = $false,
-			HelpMessage = "Path to folder containing PACLI.EXE."
+			HelpMessage = "Path to PACLI.EXE."
 		)]
 		[Parameter(
 			Mandatory = $true,
 			ParameterSetName = "FileToRemote",
 			ValueFromPipelineByPropertyName = $false,
-			HelpMessage = "Path to folder containing PACLI.EXE."
+			HelpMessage = "Path to PACLI.EXE."
 		)]
 		[ValidateNotNullOrEmpty()]
-		[ValidateScript( {Test-Path $_} )]
+		[ValidateScript( { Test-Path $_ } )]
 		[string]
-		$PacliFolder,
+		$PacliPath,
 
 		# PVWAConfig Safe Name
 		[Parameter(
@@ -212,15 +212,15 @@
 	Begin {
 
 		#If PACLI is required (for Retrieve or Store of remote PVConfiguration.xml)
-		if(($PsCmdlet.ParameterSetName -eq "Default") -or ($PsCmdlet.ParameterSetName -eq "FileToRemote")) {
+		if (($PsCmdlet.ParameterSetName -eq "Default") -or ($PsCmdlet.ParameterSetName -eq "FileToRemote")) {
 
 			Try {
 
-				#Initialise Pacli
-				Initialize-PoShPACLI -pacliFolder $PacliFolder -ErrorAction Stop | Out-Null
+				#Initialise
+				Set-PVConfiguration -ClientPath $PacliPath -ErrorAction Stop | Out-Null
 
 				#If Pacli not already running
-				if(-not (Get-Process PACLI -ErrorAction SilentlyContinue)) {
+				if (-not (Get-Process PACLI -ErrorAction SilentlyContinue)) {
 
 					#Start Pacli
 					Start-PVPACLI -ErrorAction Stop | Out-Null
@@ -242,14 +242,14 @@
 
 				#Logon to Vault, to get token, open target safe
 				$token = New-PVVaultDefinition -address $VaultAddress -vault Destination -ErrorAction SilentlyContinue |
-					Connect-PVVault -user $($Credential.UserName) -password $($Credential.Password) -ErrorAction Stop |
-					Open-PVSafe -safe $PVWAConfigSafe -ErrorAction Stop
+				Connect-PVVault -user $($Credential.UserName) -password $($Credential.Password) -ErrorAction Stop |
+				Open-PVSafe -safe $PVWAConfigSafe -ErrorAction Stop
 
 				Write-Verbose "Downloading Target File: PVConfiguration.xml"
 
 				#Save PVConfiguration.xml to Local Temp folder
 				$token |
-					Get-PVFile -folder Root -file PVConfiguration.xml `
+				Get-PVFile -folder Root -file PVConfiguration.xml `
 					-localFolder $env:TEMP -localFile _dst_PVConfiguration.xml -ErrorAction Stop | Out-Null
 
 
@@ -262,7 +262,7 @@
 
 				#Attempt Logoff & Stop
 				$token | Disconnect-PVVault -ErrorAction SilentlyContinue |
-					Stop-PVPacli  -ErrorAction SilentlyContinue | Out-Null
+				Stop-PVPacli  -ErrorAction SilentlyContinue | Out-Null
 
 				#Terminate on any error - cannot continue if PACLI process does not succeed
 				Throw $_
@@ -271,7 +271,7 @@
 
 		}
 
-		if(($PsCmdlet.ParameterSetName -eq "FileToLocal") -or ($PsCmdlet.ParameterSetName -eq "LocalFile")) {
+		if (($PsCmdlet.ParameterSetName -eq "FileToLocal") -or ($PsCmdlet.ParameterSetName -eq "LocalFile")) {
 
 			#Set inputfile path to local PVConfiguration.xml
 			$PVConfiguration = $LocalConfig
@@ -288,10 +288,10 @@
 	Process {
 
 		#If Restoring from Backup Files
-		if(($PsCmdlet.ParameterSetName -eq "FileToLocal") -or ($PsCmdlet.ParameterSetName -eq "FileToRemote")) {
+		if (($PsCmdlet.ParameterSetName -eq "FileToLocal") -or ($PsCmdlet.ParameterSetName -eq "FileToRemote")) {
 
 			#Enumerate files
-			foreach($File in $BackupFile) {
+			foreach ($File in $BackupFile) {
 
 				Write-Verbose "Importing Backup File: $File"
 
@@ -316,7 +316,7 @@
 				$NewNode = $Config.PasswordVaultConfiguration.OwnerDocument.ImportNode($Component, $true)
 
 				#If Component already exists
-				if($OldNode = $ConnectionComponents.SelectSingleNode("//ConnectionComponent[@Id='$($Component.Id)']")) {
+				if ($OldNode = $ConnectionComponents.SelectSingleNode("//ConnectionComponent[@Id='$($Component.Id)']")) {
 
 					Write-Verbose "Replacing Connection Component Node: $($Component.Id)"
 
@@ -358,7 +358,7 @@
 		}
 
 		#If Storing file back in a vault
-		if(($PsCmdlet.ParameterSetName -eq "Default") -or ($PsCmdlet.ParameterSetName -eq "FileToRemote")) {
+		if (($PsCmdlet.ParameterSetName -eq "Default") -or ($PsCmdlet.ParameterSetName -eq "FileToRemote")) {
 
 			#upload file
 			Try {
@@ -367,7 +367,7 @@
 
 				#Store Updated local PVConfiguration.xml to PVConfig Safe.
 				$token |
-					Add-PVFile -folder Root -file PVConfiguration.xml `
+				Add-PVFile -folder Root -file PVConfiguration.xml `
 					-localFolder $env:TEMP -localFile _dst_PVConfiguration.xml -ErrorAction Stop | Out-Null
 
 			}
@@ -376,7 +376,7 @@
 
 				#Try Close Safe, Logoff, Stop Pacli
 				$token | Close-PVSafe -ErrorAction SilentlyContinue |
-					Disconnect-PVVault | Stop-PVPacli | Out-Null
+				Disconnect-PVVault | Stop-PVPacli | Out-Null
 
 				#Terminate on any error - cannot continue if PACLI process does not succeed
 				Throw $_
@@ -390,17 +390,17 @@
 	End {
 
 		#If PACLI has been required
-		if(($PsCmdlet.ParameterSetName -eq "Default") -or ($PsCmdlet.ParameterSetName -eq "FileToRemote")) {
+		if (($PsCmdlet.ParameterSetName -eq "Default") -or ($PsCmdlet.ParameterSetName -eq "FileToRemote")) {
 
 			#Check for PACLI process
-			if(Get-Process PACLI -ErrorAction SilentlyContinue) {
+			if (Get-Process PACLI -ErrorAction SilentlyContinue) {
 
 				Write-Verbose "Stopping Pacli"
 
 				#Close Safe, Logoff, Always (try to) Stop Pacli
 				$token | Close-PVSafe -safe $PVWAConfigSafe -ErrorAction SilentlyContinue |
-					Disconnect-PVVault -ErrorAction SilentlyContinue |
-					Stop-PVPacli -ErrorAction SilentlyContinue| Out-Null
+				Disconnect-PVVault -ErrorAction SilentlyContinue |
+				Stop-PVPacli -ErrorAction SilentlyContinue | Out-Null
 
 			}
 

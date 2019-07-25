@@ -24,8 +24,8 @@
 	.PARAMETER Credential
 	A credential object with which to connect to the CyberArk Vault.
 
-	.PARAMETER PacliFolder
-	The path to a local folder containing PACLI.EXE
+	.PARAMETER PacliPath
+	The path to PACLI.EXE
 
 	.PARAMETER PVWAConfigSafe
 	The name of the CyberArk safe containing PVConfiguration.xml.
@@ -52,7 +52,7 @@
 	Saves connection component configurations to local files.
 
 	.NOTES
-	PoShPACLI Module is required to be available on the local machine
+	V 1.0.0+ of PoShPACLI Module is required on the local machine
 	https://github.com/pspete/PoShPACLI
 
 	#>
@@ -79,7 +79,7 @@
 			HelpMessage = "Path to local PVConfiguration.xml file"
 		)]
 		[ValidateNotNullOrEmpty()]
-		[ValidateScript( {Select-XML -Path $_ -XPath "//ConnectionComponents"} )]
+		[ValidateScript( { Select-XML -Path $_ -XPath "//ConnectionComponents" } )]
 		[string]
 		$InputFile,
 
@@ -105,17 +105,17 @@
 		[pscredential]
 		$Credential,
 
-		# Folder containing PACLI.EXE
+		# PACLI.EXE
 		[Parameter(
 			Mandatory = $true,
 			ParameterSetName = "Default",
 			ValueFromPipelineByPropertyName = $false,
-			HelpMessage = "Path to folder containing PACLI.EXE."
+			HelpMessage = "Path to PACLI.EXE."
 		)]
 		[ValidateNotNullOrEmpty()]
-		[ValidateScript( {Test-Path $_} )]
+		[ValidateScript( { Test-Path $_ } )]
 		[string]
-		$PacliFolder,
+		$PacliPath,
 
 		# PVWAConfig Safe Name
 		[Parameter(
@@ -142,15 +142,15 @@
 
 	Begin {
 
-		if($PsCmdlet.ParameterSetName -eq "Default") {
+		if ($PsCmdlet.ParameterSetName -eq "Default") {
 
 			#tasks for PACLI operation
 			Try {
 
 				#Initialise
-				Initialize-PoShPACLI -pacliFolder $PacliFolder -ErrorAction Stop | Out-Null
+				Set-PVConfiguration -ClientPath $PacliPath -ErrorAction Stop | Out-Null
 
-				if(-not (Get-Process PACLI -ErrorAction SilentlyContinue)) {
+				if (-not (Get-Process PACLI -ErrorAction SilentlyContinue)) {
 
 					Start-PVPACLI -ErrorAction Stop | Out-Null
 
@@ -171,14 +171,14 @@
 
 				#Logon to Vault, to get token, open target safe
 				$token = New-PVVaultDefinition -address $VaultAddress -vault Source |
-					Connect-PVVault -user $($Credential.UserName) -password $($Credential.Password) -ErrorAction Stop |
-					Open-PVSafe -safe $PVWAConfigSafe -ErrorAction Stop
+				Connect-PVVault -user $($Credential.UserName) -password $($Credential.Password) -ErrorAction Stop |
+				Open-PVSafe -safe $PVWAConfigSafe -ErrorAction Stop
 
 				Write-Verbose "Downloading Input File: PVConfiguration.xml"
 
 				#Save PVConfiguration.xml to Local Temp folder
 				$token |
-					Get-PVFile -folder Root -file PVConfiguration.xml `
+				Get-PVFile -folder Root -file PVConfiguration.xml `
 					-localFolder $env:TEMP -localFile _bak_PVConfiguration.xml -ErrorAction Stop | Out-Null
 
 				#Set inputfile path to local copy of PVConfiguration.xml
@@ -190,7 +190,7 @@
 
 				#Attempt Logoff & Stop
 				$token | Disconnect-PVVault -ErrorAction SilentlyContinue |
-					Stop-PVPacli | Out-Null
+				Stop-PVPacli | Out-Null
 
 				#Terminate on any error - cannot continue if PACLI process does not succeed
 				Throw $_
@@ -201,8 +201,8 @@
 
 				#Close Safe, Logoff
 				$token |
-					Close-PVSafe -safe $PVWAConfigSafe -ErrorAction SilentlyContinue |
-					Disconnect-PVVault | Out-Null
+				Close-PVSafe -safe $PVWAConfigSafe -ErrorAction SilentlyContinue |
+				Disconnect-PVVault | Out-Null
 
 			}
 
@@ -217,14 +217,14 @@
 
 	Process {
 
-		foreach($ComponentName in $ConnectionComponent) {
+		foreach ($ComponentName in $ConnectionComponent) {
 
-			If($Component = (($Config | Select-Xml -XPath "//ConnectionComponent[@Id='$ComponentName']").Node)) {
+			If ($Component = (($Config | Select-Xml -XPath "//ConnectionComponent[@Id='$ComponentName']").Node)) {
 
 				Write-Verbose "Connection Component Found: $ComponentName"
 
 				#if output directory specified
-				If($OutputDirectory) {
+				If ($OutputDirectory) {
 
 					#Write XML to file in directory
 					$Component.OuterXML | Out-File -FilePath (
@@ -254,9 +254,9 @@
 	End {
 
 		#If file fetched from vault, and retrieved file exists locally
-		if(($PsCmdlet.ParameterSetName -eq "Default") -and (Test-Path $InputFile)) {
+		if (($PsCmdlet.ParameterSetName -eq "Default") -and (Test-Path $InputFile)) {
 
-			if(Get-Process PACLI -ErrorAction SilentlyContinue) {
+			if (Get-Process PACLI -ErrorAction SilentlyContinue) {
 
 				Write-Verbose "Stopping Pacli"
 
